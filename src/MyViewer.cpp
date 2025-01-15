@@ -1,3 +1,5 @@
+#pragma once
+
 #include "viewer.h"
 #include "drawbuffer.h"
 #include "renderapi.h"

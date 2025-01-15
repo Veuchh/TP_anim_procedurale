@@ -50,7 +50,6 @@ set(SOURCE_FILES
 	thirdparty/imgui/imgui_impl_glfw.cpp
 	thirdparty/imgui/imgui_impl_opengl3.cpp
 		src/boids/BoidsViewer.cpp
-		src/boids/BoidsViewer.h
 		src/MyViewer.cpp
 )
 

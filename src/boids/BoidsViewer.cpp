@@ -1,3 +1,6 @@
+#pragma once
+
+
 #include "../viewer.h"
 #include "../drawbuffer.h"
 #include "../renderapi.h"
@@ -9,6 +12,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include "../MyViewer.cpp"
 
 struct BoidsViewer : Viewer {
 
