@@ -50,7 +50,7 @@ struct FKViewer : Viewer {
 		additionalShaderData.Pos = { 0.,0.,0. };
 		cachedElapsedTime = 0;
 		relativeRot = glm::vec3(0, 0, 0);
-		rootBone = new Bone(glm::quat(1, 0, 0, 0), glm::vec3(1, 0, 0));
+		rootBone = new Bone(glm::vec3(1, 0, 0), nullptr);
 		Bone* currentParentBone = rootBone;
 		float defaultOffset = currentParentBone->GetRelativePos().x;
 		float currentOffset = currentParentBone->GetRelativePos().x;

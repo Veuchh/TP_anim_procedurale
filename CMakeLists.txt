@@ -54,7 +54,10 @@ set(SOURCE_FILES
 		src/MyViewer.cpp
 		src/Particles/Particle.cpp 
 		src/Particles/Well.cpp
-		src/FK/FKViewer.cpp "src/FK/Bone.cpp")
+		src/FK/FKViewer.cpp 
+		src/FK/Bone.cpp
+		src/Fabrik/FabrikViewer.cpp 
+		)
 
 set(INCLUDE_DIRECTORIES 
 	${INCLUDE_DIRECTORIES}
