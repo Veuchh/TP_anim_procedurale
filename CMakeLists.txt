@@ -53,7 +53,10 @@ set(SOURCE_FILES
 		src/Particles/ParticlesViewer.cpp
 		src/MyViewer.cpp
 		src/Particles/Particle.cpp 
-		src/Particles/Well.cpp)
+		src/Particles/Well.cpp
+		src/cloth/ClothViewer.cpp
+		src/cloth/ClothParticle.hpp
+		src/cloth/ClothConstraint.hpp)
 
 set(INCLUDE_DIRECTORIES 
 	${INCLUDE_DIRECTORIES}
