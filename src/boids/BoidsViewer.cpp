@@ -7,16 +7,10 @@
 #include "../drawbuffer.h"
 #include "../renderapi.h"
 
-#include <time.h>
 #include <imgui.h>
-#include <iostream>
 #include <ostream>
 #include <vector>
 #include <GLFW/glfw3.h>
-#include <glm/mat4x4.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/euler_angles.hpp>
-#include <glm/gtx/quaternion.hpp>
 #include "../MyViewer.cpp"
 
 
@@ -44,6 +38,10 @@ struct BoidsViewer : Viewer {
 	std::vector<Boid*> boids = std::vector<Boid*>();
 
 	// Boids Parameters
+	float boidsCoherence = 0.5f;
+	float boidsSeparation = 0.5f;
+	float boidsAlignment = 0.5f;
+
 	int numBoids = 250;
 	float boidsSpeed = 1.6;
 	float boidsSpeedLimit = 2.3;
@@ -112,7 +110,7 @@ struct BoidsViewer : Viewer {
 	}
 
 	void flyTowardCenter(Boid& boid) {
-		const float centeringFactor = 0.005f; // adjust velocity by this %
+		const float centeringFactor = 0.01f * boidsCoherence; // adjust velocity by this %
 
 		float centerX = 0;
 		float centerY = 0;
@@ -137,7 +135,7 @@ struct BoidsViewer : Viewer {
 	}
 
 	void avoidOthers(Boid& boid) const {
-		constexpr float avoidFactor = 0.05f; // Adjust velocity by this %
+		float avoidFactor = 0.1f * boidsSeparation; // Adjust velocity by this %
 	    float moveX = 0.0f;
 	    float moveY = 0.0f;
 	    for (const Boid* otherBoid : boids) {
@@ -168,7 +166,7 @@ struct BoidsViewer : Viewer {
 		}
 
 		if (numNeighbors) {
-			constexpr float matchingFactor = 0.05f;
+			const float matchingFactor = 0.1f * boidsAlignment;
 			avgDX /= static_cast<float>(numNeighbors);
 			avgDY /= static_cast<float>(numNeighbors);
 
@@ -224,86 +222,12 @@ struct BoidsViewer : Viewer {
 	}
 
 	void render3D_custom(const RenderApi3D& api) const override {
-		//Here goes your drawcalls affected by the custom vertex shader
-		api.horizontalPlane({ 0, 2, 0 }, { 4, 4 }, 200, glm::vec4(0.0f, 0.2f, 1.f, 1.f));
 	}
 
 	void render3D(const RenderApi3D& api) const override {
-		api.horizontalPlane({ 0, 0, 0 }, { 10, 10 }, 1, glm::vec4(0.9f, 0.9f, 0.9f, 1.f));
-
-		api.grid(10.f, 10, glm::vec4(0.5f, 0.5f, 0.5f, 1.f), nullptr);
-
-		api.axisXYZ(nullptr);
-
-		constexpr float cubeSize = 0.5f;
-		glm::mat4 cubeModelMatrix = glm::translate(glm::identity<glm::mat4>(), cubePosition);
-		api.solidCube(cubeSize, white, &cubeModelMatrix);
-
-		{
-			glm::vec3 vertices[] = {
-				{0.5f * cubeSize, 0.5f * cubeSize, 0.5f * cubeSize},
-				{0.f, cubeSize, 0.f},
-				{0.5f * cubeSize, 0.5f * cubeSize, -0.5f * cubeSize},
-				{0.f, cubeSize, 0.f},
-				{-0.5f * cubeSize, 0.5f * cubeSize, 0.5f * cubeSize},
-				{0.f, cubeSize, 0.f},
-				{-0.5f * cubeSize, 0.5f * cubeSize, -0.5f * cubeSize},
-				{0.f, cubeSize, 0.f},
-			};
-			api.lines(vertices, COUNTOF(vertices), white, &cubeModelMatrix);
-		}
-
-		{
-			glm::quat q = glm::angleAxis(boneAngle, glm::vec3(0.f, 1.f, 0.f));
-			glm::vec3 childRelPos = { 1.f, 1.f, 0.f };
-			api.bone(childRelPos, white, q, glm::vec3(0.f, 0.f, 0.f));
-			glm::vec3 childAbsPos = q * childRelPos;
-			api.solidSphere(childAbsPos, 0.05f, 10, 10, white);
-		}
-
-		api.solidSphere(glm::vec3(-1.f, 0.5f, 1.f), 0.5f, 100, 100, white);
 	}
 
 	void render2D(const RenderApi2D& api) const override {
-
-		constexpr float padding = 50.f;
-
-		if (altKeyPressed) {
-			if (leftMouseButtonPressed) {
-				api.circleFill(mousePos, padding, 10, white);
-			} else {
-				api.circleContour(mousePos, padding, 10, white);
-			}
-
-		} else {
-			const glm::vec2 min = mousePos + glm::vec2(padding, padding);
-			const glm::vec2 max = mousePos + glm::vec2(-padding, -padding);
-			if (leftMouseButtonPressed) {
-				api.quadFill(min, max, white);
-			}
-			else {
-				api.quadContour(min, max, white);
-			}
-		}
-
-		{
-			const glm::vec2 from = { viewportWidth * 0.5f, padding };
-			const glm::vec2 to = { viewportWidth * 0.5f, 2.f * padding };
-			constexpr float thickness = padding * 0.25f;
-			constexpr float hatRatio = 0.3f;
-			api.arrow(from, to, thickness, hatRatio, white);
-		}
-
-		{
-			glm::vec2 vertices[] = {
-				{ padding, viewportHeight - padding },
-				{ viewportWidth * 0.5f, viewportHeight - 2.f * padding },
-				{ viewportWidth * 0.5f, viewportHeight - 2.f * padding },
-				{ viewportWidth - padding, viewportHeight - padding },
-			};
-			api.lines(vertices, COUNTOF(vertices), white);
-		}
-
 		for (Boid* boid: boids) {
 			//api.circleFill(boid->position, 5, 10, red);
 			api.arrow(boid->position, boid->position + normalize(boid->velocity),boidsModelArrowThickness,boidsModelArrowHat,getColor(*boid));
@@ -314,7 +238,10 @@ struct BoidsViewer : Viewer {
 		static bool showDemoWindow = false;
 
 		ImGui::Begin("3D Sandbox - Boids");
-
+		ImGui::SliderFloat("Boids Coherence", &boidsCoherence, 0.0f, 1.0f);
+		ImGui::SliderFloat("Boids Separation", &boidsSeparation, 0.0f, 1.0f);
+		ImGui::SliderFloat("Boids Alignment", &boidsAlignment, 0.0f, 1.0f);
+		ImGui::Separator();
 		ImGui::SliderFloat("Boids Speed", &boidsSpeed, 0.0f, 100.0f);
 		ImGui::SliderFloat("Boids Speed Limit", &boidsSpeedLimit, boidsSpeed, 100.0f);
 		ImGui::SliderFloat("Boids Visual Range", &boidsVisualRange, 0.0f, 100.0f);
