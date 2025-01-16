@@ -59,7 +59,8 @@ set(SOURCE_FILES
 		src/cloth/ClothConstraint.hpp
 		src/Particles/Well.cpp
 		src/FK/FKViewer.cpp
-		src/FK/Bone.cpp)
+		src/FK/Bone.cpp
+		src/bounce/BounceViewer.cpp)
 
 set(INCLUDE_DIRECTORIES 
 	${INCLUDE_DIRECTORIES}
