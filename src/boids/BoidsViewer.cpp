@@ -1,20 +1,28 @@
 #pragma once
 
 
+#include <algorithm>
+
 #include "../viewer.h"
 #include "../drawbuffer.h"
 #include "../renderapi.h"
 
-#include <time.h>
 #include <imgui.h>
+#include <ostream>
+#include <vector>
 #include <GLFW/glfw3.h>
-#include <glm/mat4x4.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/euler_angles.hpp>
-#include <glm/gtx/quaternion.hpp>
 #include "../MyViewer.cpp"
 
+
 struct BoidsViewer : Viewer {
+
+	class Boid {
+	public:
+		Boid() = default;
+		~Boid() = default;
+		glm::vec2 position = { 0, 0 };
+		glm::vec2 velocity = { 0, 0 };
+	};
 
 	glm::vec3 jointPosition;
 	glm::vec3 cubePosition;
@@ -27,7 +35,31 @@ struct BoidsViewer : Viewer {
 
 	VertexShaderAdditionalData additionalShaderData;
 
+	std::vector<Boid*> boids = std::vector<Boid*>();
+
+	// Boids Parameters
+	float boidsCoherence = 0.5f;
+	float boidsSeparation = 0.5f;
+	float boidsAlignment = 0.5f;
+
+	int numBoids = 250;
+	float boidsSpeed = 1.6;
+	float boidsSpeedLimit = 2.3;
+	float boidsModelArrowThickness = 8;
+	float boidsModelArrowHat = 77;
+	float boidsVisualRange = 36;
+	bool mouseAttractBoids = false;
+	int maxNeighborForColor = 5;
+	glm::vec4 minNeighborColor = { 0.f, 1.f, 0.f, 1.f };
+	glm::vec4 maxNeighborColor = { 1.f, 0.f, 0.f, 1.f };
+
 	BoidsViewer() : Viewer("BoidsViewer", 1280, 720) {}
+
+	~BoidsViewer() {
+		for (const Boid* boid : boids) {
+			delete boid;
+		}
+	}
 
 	void init() override {
 		cubePosition = glm::vec3(1.f, 0.25f, -1.f);
@@ -39,8 +71,130 @@ struct BoidsViewer : Viewer {
 		altKeyPressed = false;
 
 		additionalShaderData.Pos = { 0.,0.,0. };
+		initBoids();
 	}
 
+	void initBoids() {
+		for (int i = 0; i < numBoids; i++) {
+			Boid* boid = new Boid();
+			boid->position = { randFloat()*static_cast<float>(viewportWidth), randFloat()*static_cast<float>(viewportHeight) };
+			boid->velocity = { randFloat()*10-5, randFloat()*10-5 };
+			boids.push_back(boid);
+		}
+	}
+
+	static float randFloat() {
+		return rand() / static_cast<float>(RAND_MAX);
+	}
+
+	static double distance(const Boid& boid1, const Boid& boid2) {
+		return glm::distance(boid1.position, boid2.position);
+	}
+
+	void keepWithinBounds(Boid& boid) {
+		const double margin = 50;
+		const double turnFactor = 1;
+
+		if (boid.position.x < margin) {
+			boid.velocity.x += turnFactor;
+		}
+		if (boid.position.x > viewportWidth - margin) {
+			boid.velocity.x -= turnFactor;
+		}
+		if (boid.position.y < margin) {
+			boid.velocity.y += turnFactor;
+		}
+		if (boid.position.y > viewportHeight - margin) {
+			boid.velocity.y -= turnFactor;
+		}
+	}
+
+	void flyTowardCenter(Boid& boid) {
+		const float centeringFactor = 0.01f * boidsCoherence; // adjust velocity by this %
+
+		float centerX = 0;
+		float centerY = 0;
+
+		int numNeighbors = 0;
+
+		for (const Boid* otherBoid : boids) {
+			if (distance(boid, *otherBoid) < boidsVisualRange) {
+				centerX += otherBoid->position.x;
+				centerY += otherBoid->position.y;
+				numNeighbors += 1;
+			}
+		}
+
+		if (numNeighbors) {
+			centerX /= static_cast<float>(numNeighbors);
+			centerY /= static_cast<float>(numNeighbors);
+
+			boid.velocity.x += (centerX - boid.position.x) * centeringFactor;
+			boid.velocity.y += (centerY - boid.position.y) * centeringFactor;
+		}
+	}
+
+	void avoidOthers(Boid& boid) const {
+		float avoidFactor = 0.1f * boidsSeparation; // Adjust velocity by this %
+	    float moveX = 0.0f;
+	    float moveY = 0.0f;
+	    for (const Boid* otherBoid : boids) {
+	        if (otherBoid != &boid) {
+		        constexpr float minDistance = 20.0f;
+		        if (distance(boid, *otherBoid) < minDistance) {
+	                moveX += boid.position.x - otherBoid->position.x;
+	                moveY += boid.position.y - otherBoid->position.y;
+	            }
+	        }
+	    }
+
+	    boid.velocity.x += moveX * avoidFactor;
+	    boid.velocity.y += moveY * avoidFactor;
+	}
+
+	void matchVelocity(Boid& boid) const {
+		float avgDX = 0;
+		float avgDY = 0;
+		int numNeighbors = 0;
+
+		for (const Boid* otherBoid : boids) {
+			if (distance(boid, *otherBoid) < boidsVisualRange) {
+				avgDX += otherBoid->velocity.x;
+				avgDY += otherBoid->velocity.y;
+				numNeighbors += 1;
+			}
+		}
+
+		if (numNeighbors) {
+			const float matchingFactor = 0.1f * boidsAlignment;
+			avgDX /= static_cast<float>(numNeighbors);
+			avgDY /= static_cast<float>(numNeighbors);
+
+			boid.velocity.x += (avgDX - boid.velocity.x) * matchingFactor;
+			boid.velocity.y += (avgDY - boid.velocity.y) * matchingFactor;
+		}
+	}
+
+	void limitSpeed(Boid &boid) const {
+		const float speed = glm::length(boid.velocity);
+		if (speed > boidsSpeedLimit) {
+			boid.velocity = (boid.velocity / speed) * boidsSpeedLimit;
+		}
+	}
+
+	glm::vec4 getColor(const Boid &boid) const {
+		// Count the numbers of neighbors
+		int numNeighbors = 0;
+		for (const Boid* otherBoid : boids) {
+			if (distance(boid, *otherBoid) < boidsVisualRange) {
+				numNeighbors += 1;
+			}
+		}
+
+		// Interpolate color based on number of neighbors
+		const float t = std::min(static_cast<float>(numNeighbors) / static_cast<float>(maxNeighborForColor), 1.f);
+		return glm::mix(minNeighborColor, maxNeighborColor, t);
+	}
 
 	void update(double elapsedTime) override {
 		boneAngle = (float)elapsedTime;
@@ -57,118 +211,88 @@ struct BoidsViewer : Viewer {
 
 		pCustomShaderData = &additionalShaderData;
 		CustomShaderDataSize = sizeof(VertexShaderAdditionalData);
+		for (Boid* boid: boids) {
+			flyTowardCenter(*boid);
+			avoidOthers(*boid);
+			matchVelocity(*boid);
+			limitSpeed(*boid);
+			keepWithinBounds(*boid);
+			boid->position += boid->velocity * boidsSpeed;
+		}
 	}
 
 	void render3D_custom(const RenderApi3D& api) const override {
-		//Here goes your drawcalls affected by the custom vertex shader
-		api.horizontalPlane({ 0, 2, 0 }, { 4, 4 }, 200, glm::vec4(0.0f, 0.2f, 1.f, 1.f));
 	}
 
 	void render3D(const RenderApi3D& api) const override {
-		api.horizontalPlane({ 0, 0, 0 }, { 10, 10 }, 1, glm::vec4(0.9f, 0.9f, 0.9f, 1.f));
-
-		api.grid(10.f, 10, glm::vec4(0.5f, 0.5f, 0.5f, 1.f), nullptr);
-
-		api.axisXYZ(nullptr);
-
-		constexpr float cubeSize = 0.5f;
-		glm::mat4 cubeModelMatrix = glm::translate(glm::identity<glm::mat4>(), cubePosition);
-		api.solidCube(cubeSize, white, &cubeModelMatrix);
-
-		{
-			glm::vec3 vertices[] = {
-				{0.5f * cubeSize, 0.5f * cubeSize, 0.5f * cubeSize},
-				{0.f, cubeSize, 0.f},
-				{0.5f * cubeSize, 0.5f * cubeSize, -0.5f * cubeSize},
-				{0.f, cubeSize, 0.f},
-				{-0.5f * cubeSize, 0.5f * cubeSize, 0.5f * cubeSize},
-				{0.f, cubeSize, 0.f},
-				{-0.5f * cubeSize, 0.5f * cubeSize, -0.5f * cubeSize},
-				{0.f, cubeSize, 0.f},
-			};
-			api.lines(vertices, COUNTOF(vertices), white, &cubeModelMatrix);
-		}
-
-		{
-			glm::quat q = glm::angleAxis(boneAngle, glm::vec3(0.f, 1.f, 0.f));
-			glm::vec3 childRelPos = { 1.f, 1.f, 0.f };
-			api.bone(childRelPos, white, q, glm::vec3(0.f, 0.f, 0.f));
-			glm::vec3 childAbsPos = q * childRelPos;
-			api.solidSphere(childAbsPos, 0.05f, 10, 10, white);
-		}
-
-		api.solidSphere(glm::vec3(-1.f, 0.5f, 1.f), 0.5f, 100, 100, white);
 	}
 
 	void render2D(const RenderApi2D& api) const override {
-
-		constexpr float padding = 50.f;
-
-		if (altKeyPressed) {
-			if (leftMouseButtonPressed) {
-				api.circleFill(mousePos, padding, 10, white);
-			} else {
-				api.circleContour(mousePos, padding, 10, white);
-			}
-
-		} else {
-			const glm::vec2 min = mousePos + glm::vec2(padding, padding);
-			const glm::vec2 max = mousePos + glm::vec2(-padding, -padding);
-			if (leftMouseButtonPressed) {
-				api.quadFill(min, max, white);
-			}
-			else {
-				api.quadContour(min, max, white);
-			}
-		}
-
-		{
-			const glm::vec2 from = { viewportWidth * 0.5f, padding };
-			const glm::vec2 to = { viewportWidth * 0.5f, 2.f * padding };
-			constexpr float thickness = padding * 0.25f;
-			constexpr float hatRatio = 0.3f;
-			api.arrow(from, to, thickness, hatRatio, white);
-		}
-
-		{
-			glm::vec2 vertices[] = {
-				{ padding, viewportHeight - padding },
-				{ viewportWidth * 0.5f, viewportHeight - 2.f * padding },
-				{ viewportWidth * 0.5f, viewportHeight - 2.f * padding },
-				{ viewportWidth - padding, viewportHeight - padding },
-			};
-			api.lines(vertices, COUNTOF(vertices), white);
+		for (Boid* boid: boids) {
+			//api.circleFill(boid->position, 5, 10, red);
+			api.arrow(boid->position, boid->position + normalize(boid->velocity),boidsModelArrowThickness,boidsModelArrowHat,getColor(*boid));
 		}
 	}
 
 	void drawGUI() override {
 		static bool showDemoWindow = false;
 
-		ImGui::Begin("3D Sandbox");
-
-		ImGui::Checkbox("Show demo window", &showDemoWindow);
-
-		ImGui::ColorEdit4("Background color", (float*)&backgroundColor, ImGuiColorEditFlags_NoInputs);
-
-		ImGui::SliderFloat("Point size", &pointSize, 0.1f, 10.f);
-		ImGui::SliderFloat("Line Width", &lineWidth, 0.1f, 10.f);
+		ImGui::Begin("3D Sandbox - Boids");
+		ImGui::SliderFloat("Boids Coherence", &boidsCoherence, 0.0f, 1.0f);
+		ImGui::SliderFloat("Boids Separation", &boidsSeparation, 0.0f, 1.0f);
+		ImGui::SliderFloat("Boids Alignment", &boidsAlignment, 0.0f, 1.0f);
 		ImGui::Separator();
-		ImGui::SliderFloat3("Light dir", (float(&)[3])lightDir, -1.f, 1.f);
-		ImGui::SliderFloat("Light Strength", &lightStrength, 0.f, 2.f);
-		ImGui::SliderFloat("Ligh Ambient", &lightAmbient, 0.f, 0.5f);
-		ImGui::SliderFloat("Ligh Specular", &specular, 0.f, 1.f);
-		ImGui::SliderFloat("Ligh Specular Pow", &specularPow, 1.f, 200.f);
-		ImGui::Separator();
-		ImGui::SliderFloat3("CustomShader_Pos", &additionalShaderData.Pos.x, -10.f, 10.f);
-		ImGui::Separator();
-		float fovDegrees = glm::degrees(camera.fov);
-		if (ImGui::SliderFloat("Camera field of fiew (degrees)", &fovDegrees, 15, 180)) {
-			camera.fov = glm::radians(fovDegrees);
+		ImGui::SliderFloat("Boids Speed", &boidsSpeed, 0.0f, 100.0f);
+		ImGui::SliderFloat("Boids Speed Limit", &boidsSpeedLimit, boidsSpeed, 100.0f);
+		ImGui::SliderFloat("Boids Visual Range", &boidsVisualRange, 0.0f, 100.0f);
+		ImGui::SliderFloat("Boids Model Arrow Thickness", &boidsModelArrowThickness, 0.0f, 100.0f);
+		ImGui::SliderFloat("Boids Model Arrow Hat", &boidsModelArrowHat, 0.0f, 100.0f);
+		ImGui::SliderInt("Boids Neighbor For Color", &maxNeighborForColor, 0, numBoids);
+		ImGui::Checkbox("Mouse Attracts Boids", &mouseAttractBoids);
+
+		if (ImGui::CollapsingHeader("Boids Colors")) {
+			ImGui::ColorPicker3("Min Neighbors Color", reinterpret_cast<float *>(&minNeighborColor));
+			ImGui::ColorPicker3("Max Neighbors Color", reinterpret_cast<float *>(&maxNeighborColor));
 		}
 
-		ImGui::SliderFloat3("Cube Position", (float(&)[3])cubePosition, -1.f, 1.f);
+		// Drop down
+		if (ImGui::CollapsingHeader("Boids List")) {
+			// Iterate through boids with index loop
+			for (int i = 0; i < numBoids; i++) {
+				// Write the current boid index
+				ImGui::Text("Boid %d", i);
+				// Write position and velocity as text
+				ImGui::Text("Position: (%.2f, %.2f)", boids[i]->position.x, boids[i]->position.y);
+				ImGui::Text("Velocity: (%.2f, %.2f)", boids[i]->velocity.x, boids[i]->velocity.y);
+				ImGui::Separator();
+			}
+		}
 
-		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		if (ImGui::CollapsingHeader("Default")) {
+			ImGui::Checkbox("Show demo window", &showDemoWindow);
+
+			ImGui::ColorEdit4("Background color", (float*)&backgroundColor, ImGuiColorEditFlags_NoInputs);
+
+			ImGui::SliderFloat("Point size", &pointSize, 0.1f, 10.f);
+			ImGui::SliderFloat("Line Width", &lineWidth, 0.1f, 10.f);
+			ImGui::Separator();
+			ImGui::SliderFloat3("Light dir", (float(&)[3])lightDir, -1.f, 1.f);
+			ImGui::SliderFloat("Light Strength", &lightStrength, 0.f, 2.f);
+			ImGui::SliderFloat("Ligh Ambient", &lightAmbient, 0.f, 0.5f);
+			ImGui::SliderFloat("Ligh Specular", &specular, 0.f, 1.f);
+			ImGui::SliderFloat("Ligh Specular Pow", &specularPow, 1.f, 200.f);
+			ImGui::Separator();
+			ImGui::SliderFloat3("CustomShader_Pos", &additionalShaderData.Pos.x, -10.f, 10.f);
+			ImGui::Separator();
+			float fovDegrees = glm::degrees(camera.fov);
+			if (ImGui::SliderFloat("Camera field of fiew (degrees)", &fovDegrees, 15, 180)) {
+				camera.fov = glm::radians(fovDegrees);
+			}
+
+			ImGui::SliderFloat3("Cube Position", (float(&)[3])cubePosition, -1.f, 1.f);
+
+			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		}
 
 		ImGui::End();
 
