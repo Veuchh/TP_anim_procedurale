@@ -4,6 +4,7 @@
 #include "FK/FKViewer.cpp"
 #include "cloth/ClothViewer.cpp"
 #include "bounce/BounceViewer.cpp"
+#include "Spider/SpiderViewer.cpp"
 
 int main(int argc, char** argv) {
 	//MyViewer v;
@@ -12,6 +13,7 @@ int main(int argc, char** argv) {
 	//ClothViewer v;
 	//FKViewer v;
 	//FabrikViewer v;
-	BounceViewer v;
+	//BounceViewer v;
+	SpiderViewer v;
 	return v.run();
 }

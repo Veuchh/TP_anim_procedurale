@@ -17,7 +17,7 @@ public:
 	Bone(glm::vec3 startRelativePos, Bone* parentBone);
 	~Bone();
 	Bone* parentBone;
-	glm::vec3 GetRelativePos();
+	const glm::vec3 GetRelativePos();
 	glm::quat GetRelativeRot();
 	std::vector<Bone*> GetChildBones();
 
@@ -28,7 +28,7 @@ public:
 	glm::quat SetRelativeRot(glm::vec3 eulerRot);
 	void SetRelativePos(glm::vec3 newPos);
 	Bone* GetBoneByChainNumber(int boneNumber, int currentBoneID);
-	float GetChainLength();
+	const float GetChainLength() const;
 
 
 	Bone* AddChildBone(glm::vec3 newBoneRelPos, glm::quat newBoneRelRot);

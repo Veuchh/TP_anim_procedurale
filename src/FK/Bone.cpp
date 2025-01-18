@@ -40,7 +40,7 @@ glm::vec3 Bone::GetAbsolutePos()
 {
 	if (parentBone == nullptr)
 	{
-		return glm::vec3(0);
+		return GetRelativePos();
 	}
 	return parentBone->GetAbsolutePos() + parentBone->GetAbsoluteRot() * relativePos;
 }
@@ -88,9 +88,9 @@ Bone* Bone::GetBoneByChainNumber(int targetBoneNumber, int currentBoneID)
 	return nullptr;
 }
 
-float Bone::GetChainLength()
+const float Bone::GetChainLength() const
 {
-	return (childBones.size() > 0 ? childBones[0]->GetChainLength() : 0 ) + relativePos.length();
+	return (childBones.size() > 0 ? childBones[0]->GetChainLength() : 0 ) + (parentBone != nullptr ? glm::length(relativePos) : 0);
 }
 
 Bone* Bone::AddChildBone(glm::vec3 newBoneRelPos, glm::quat newBoneRelRot)
@@ -102,7 +102,7 @@ Bone* Bone::AddChildBone(glm::vec3 newBoneRelPos, glm::quat newBoneRelRot)
 	return newBone;
 }
 
-glm::vec3 Bone::GetRelativePos()
+const glm::vec3 Bone::GetRelativePos()
 {
 	return relativePos;
 }
