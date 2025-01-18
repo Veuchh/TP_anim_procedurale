@@ -226,7 +226,7 @@ struct FabrikViewer : Viewer {
 	void drawGUI() override {
 		static bool showDemoWindow = false;
 
-		ImGui::Begin("Fabrik");
+		ImGui::Begin("FK");
 
 		ImGui::Checkbox("Show demo window", &showDemoWindow);
 

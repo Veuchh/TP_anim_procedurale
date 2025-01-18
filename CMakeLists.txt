@@ -63,6 +63,7 @@ set(SOURCE_FILES
 		src/FK/FKViewer.cpp 
 		src/FK/Bone.cpp
 		src/Fabrik/FabrikViewer.cpp 
+		src/Spider/SpiderViewer.cpp 
 		)
 
 set(INCLUDE_DIRECTORIES 
